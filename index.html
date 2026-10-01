@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#17324d">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="styles.css">
+  <title>Caja Fácil</title>
+</head>
+<body>
+<header>
+  <div>
+    <h1>💰 Caja Fácil</h1>
+    <p id="fecha"></p>
+  </div>
+  <span class="pill">Fondo fijo $2,500</span>
+</header>
+
+<main>
+  <section id="inicio" class="view active">
+    <div class="card hero">
+      <small>Así se ve como en la hoja</small>
+      <div id="notaHoy" class="nota"></div>
+    </div>
+
+    <div class="acciones-titulo">¿Qué quieres hacer?</div>
+    <div class="actions">
+      <button onclick="show('gasto')">🧾<span>Gasto del día</span></button>
+      <button onclick="show('compra')">🛒<span>Compra grande</span></button>
+      <button class="primary" onclick="show('cierre')">💰<span>Cerrar el día</span></button>
+      <button onclick="show('historial')">📅<span>Historial</span></button>
+      <button onclick="show('resumen')">📊<span>Resumen</span></button>
+      <button onclick="show('respaldo')">🛡️<span>Respaldo</span></button>
+    </div>
+  </section>
+
+  <section id="gasto" class="view">
+    <button class="back" onclick="show('inicio')">← Inicio</button>
+    <h2>Registrar gasto del día</h2>
+    <p class="hint">Estos sí salen de la caja de hoy y sí afectan el cierre.</p>
+    <label>Concepto
+      <input id="gConcepto" placeholder="Ej. Verdura">
+    </label>
+    <label>Importe
+      <input id="gMonto" type="number" inputmode="decimal" placeholder="$0">
+    </label>
+    <button class="save" onclick="guardarMovimiento('caja')">Guardar gasto</button>
+    <div class="mini-titulo">Gastos del día</div>
+    <div id="listaGastos"></div>
+  </section>
+
+  <section id="compra" class="view">
+    <button class="back" onclick="show('inicio')">← Inicio</button>
+    <h2>Registrar compra grande</h2>
+    <p class="hint">Carne u otros insumos pagados con dinero acumulado. No afectan el cierre diario de caja.</p>
+    <label>Concepto
+      <input id="cConcepto" placeholder="Ej. Carne">
+    </label>
+    <label>Importe
+      <input id="cMonto" type="number" inputmode="decimal" placeholder="$0">
+    </label>
+    <button class="save" onclick="guardarMovimiento('acumulado')">Guardar compra</button>
+    <div class="mini-titulo">Compras grandes del día</div>
+    <div id="listaCompras"></div>
+  </section>
+
+  <section id="cierre" class="view">
+    <button class="back" onclick="show('inicio')">← Inicio</button>
+    <h2>Cerrar el día</h2>
+    <div class="notice">
+      <b>Caja:</b> Fondo fijo $2,500 + ventas en efectivo − gastos del día = efectivo esperado.<br>
+      <small>Las compras grandes no entran en esta cuenta.</small>
+    </div>
+
+    <label>Ventas en efectivo
+      <input id="vEfectivo" type="number" inputmode="decimal" placeholder="$0" oninput="calcularCierre()">
+    </label>
+    <label>Ventas con tarjeta
+      <input id="vTarjeta" type="number" inputmode="decimal" placeholder="$0" oninput="calcularCierre()">
+    </label>
+    <label>Efectivo contado en caja
+      <input id="contado" type="number" inputmode="decimal" placeholder="$0" oninput="calcularCierre()">
+    </label>
+
+    <div id="calc" class="card"></div>
+    <button class="save" onclick="cerrarDia()">Guardar y cerrar día</button>
+  </section>
+
+  <section id="historial" class="view">
+    <button class="back" onclick="show('inicio')">← Inicio</button>
+    <h2>Historial</h2>
+    <p class="hint">Se muestra como nota rápida, igual que en la hoja, y abajo el detalle.</p>
+    <div id="hist"></div>
+  </section>
+
+  <section id="resumen" class="view">
+    <button class="back" onclick="show('inicio')">← Inicio</button>
+    <h2>Resumen</h2>
+    <p class="hint">Aquí se ve claro qué pertenece a ventas, gastos, compras grandes, caja y resultado.</p>
+    <div class="tabs">
+      <button onclick="renderResumen('semana')">Semana</button>
+      <button onclick="renderResumen('mes')">Mes</button>
+      <button onclick="renderResumen('todo')">Todo</button>
+    </div>
+    <div id="res"></div>
+  </section>
+
+  <section id="respaldo" class="view">
+    <button class="back" onclick="show('inicio')">← Inicio</button>
+    <h2>Respaldo</h2>
+    <div class="card">
+      <h3>Protege tu historial</h3>
+      <p>Los datos quedan guardados en este dispositivo. Descarga un respaldo para no perder la información si cambias de celular.</p>
+      <button class="save" onclick="exportar()">⬇️ Descargar respaldo</button>
+      <label class="file">⬆️ Restaurar respaldo
+        <input type="file" accept=".json,application/json" onchange="importar(event)">
+      </label>
+    </div>
+
+    <div class="card">
+      <h3>Instalar en Android</h3>
+      <ol class="pasos">
+        <li>Publica esta carpeta en una dirección <b>HTTPS</b>.</li>
+        <li>Abre el enlace en <b>Chrome</b> en el Android.</li>
+        <li>Toca <b>⋮</b> y elige <b>Instalar aplicación</b> o <b>Añadir a pantalla principal</b>.</li>
+      </ol>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button onclick="show('inicio')">🏠<small>Inicio</small></button>
+  <button onclick="show('gasto')">🧾<small>Gasto</small></button>
+  <button onclick="show('cierre')">💰<small>Cierre</small></button>
+  <button onclick="show('historial')">📅<small>Historial</small></button>
+</nav>
+
+<script src="app.js"></script>
+</body>
+</html>
