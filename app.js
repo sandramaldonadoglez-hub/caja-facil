@@ -1,4 +1,4 @@
-const FONDO=2500; let db;
+const FONDO=2500; let db; let operacionDatos=false;
 const hoy=()=>new Date().toISOString().slice(0,10); const money=n=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(Number(n)||0); const fechaLarga=f=>new Date(f+'T12:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 document.getElementById('fecha').textContent=new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
 function openDB(){return new Promise((ok,no)=>{const r=indexedDB.open('CajaFacilDB',1);r.onupgradeneeded=e=>{const d=e.target.result;if(!d.objectStoreNames.contains('movimientos'))d.createObjectStore('movimientos',{keyPath:'id',autoIncrement:true});if(!d.objectStoreNames.contains('cierres'))d.createObjectStore('cierres',{keyPath:'fecha'});};r.onsuccess=e=>{db=e.target.result;ok()};r.onerror=no})} function st(n,m='readonly'){return db.transaction(n,m).objectStore(n)} function all(n){return new Promise(ok=>{const r=st(n).getAll();r.onsuccess=()=>ok(r.result||[])})} function put(n,v){return new Promise(ok=>{const r=st(n,'readwrite').put(v);r.onsuccess=()=>ok()})} function add(n,v){return new Promise(ok=>{const r=st(n,'readwrite').add(v);r.onsuccess=()=>ok()})} function del(n,k){return new Promise(ok=>{const r=st(n,'readwrite').delete(k);r.onsuccess=()=>ok()})}
@@ -17,5 +17,53 @@ async function editarCierre(fecha){const cs=await all('cierres'),x=cs.find(y=>y.
 async function recalcularCierre(fecha){const cs=await all('cierres'),x=cs.find(y=>y.fecha===fecha);if(!x)return;const g=await sumTipo('caja',fecha),compras=await sumTipo('acumulado',fecha),casa=await sumTipo('casa',fecha),esperado=FONDO-g+x.efectivo;await put('cierres',{...x,gastosCaja:g,compras,casa,resultado:x.efectivo+x.tarjeta-g-compras-casa,esperado,diferencia:x.contado-esperado})}
 async function renderHist(){const c=(await all('cierres')).sort((a,b)=>b.fecha.localeCompare(a.fecha));hist.innerHTML=c.length?(await Promise.all(c.map(async x=>{const d=await datosDia(x.fecha),m=await movs(x.fecha);return `<div class='card'><h3>${fechaLarga(x.fecha)}</h3><div class='nota'>${notaHTML(d)}</div><button class='editwide' onclick="editarCierre('${x.fecha}')">✏️ Modificar ventas / efectivo contado</button><div class='detalle'>${m.map(y=>`<div class='item'><div>${y.tipo==='caja'?'🧾':y.tipo==='acumulado'?'🛒':'🏠'} ${y.concepto}<small>${money(y.monto)}</small></div><div><button class='editbtn' onclick='editarMovimiento(${y.id})'>✏️</button><button class='delbtn' onclick='borrarMovimiento(${y.id})'>🗑️</button></div></div>`).join('')}</div></div>`}))).join(''):`<div class='empty'>Sin cierres.</div>`}
 async function renderResumen(p){const cs=await all('cierres'),now=new Date(),fil=cs.filter(x=>{const d=new Date(x.fecha+'T12:00');if(p==='todo')return true;if(p==='mes')return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();const ini=new Date(now);ini.setDate(now.getDate()-6);ini.setHours(0,0,0,0);return d>=ini&&d<=now});let tot={efectivo:0,tarjeta:0,ventas:0,gastos:0,compras:0,casa:0,resultado:0};for(const x of fil){const d=await datosDia(x.fecha);Object.keys(tot).forEach(k=>tot[k]+=d[k]||0)}res.innerHTML=`<div class='card'><h3>${p==='semana'?'Últimos 7 días':p==='mes'?'Mes actual':'Todo el historial'}</h3><div class='metric'><span>Ventas efectivo</span><b>${money(tot.efectivo)}</b></div><div class='metric'><span>Ventas tarjeta</span><b>${money(tot.tarjeta)}</b></div><div class='metric'><span>Ventas totales</span><b>${money(tot.ventas)}</b></div><div class='block-title'>Gastos acumulados</div><div class='metric'><span>Gastos del día</span><b>${money(tot.gastos)}</b></div><div class='metric'><span>Compras grandes</span><b>${money(tot.compras)}</b></div><div class='metric'><span>Gastos casa</span><b>${money(tot.casa)}</b></div><div class='metric'><span>Gastos totales</span><b>${money(tot.gastos+tot.compras+tot.casa)}</b></div><div class='block-title'>Resultado</div><div class='metric'><span>Ventas − todos los gastos</span><b class='${tot.resultado>=0?'ok':'danger'}'>${money(tot.resultado)}</b></div></div>`}
-async function exportar(){const data={version:4,fecha:new Date().toISOString(),movimientos:await all('movimientos'),cierres:await all('cierres')},blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`caja-facil-respaldo-${hoy()}.json`;a.click();URL.revokeObjectURL(a.href)} async function importar(ev){const f=ev.target.files[0];if(!f)return;try{const d=JSON.parse(await f.text());if(!confirm('¿Restaurar respaldo?'))return;for(const x of d.movimientos||[]){const y={...x};delete y.id;await add('movimientos',y)}for(const x of d.cierres||[])await put('cierres',x);alert('Restaurado.');renderInicio()}catch(e){alert('Archivo no válido.')}}
-openDB().then(async()=>{await renderInicio();await calcularCierre();if('serviceWorker'in navigator)navigator.serviceWorker.register('./service-worker.js',{updateViaCache:'none'}).then(r=>r.update()).catch(e=>console.warn('No se pudo actualizar el modo sin conexión.',e))});
+async function exportar(){const data={version:4,fecha:new Date().toISOString(),movimientos:await all('movimientos'),cierres:await all('cierres')},blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`caja-facil-respaldo-${hoy()}.json`;a.click();URL.revokeObjectURL(a.href)}
+function bloquearDatos(ocupado){
+ operacionDatos=ocupado;
+ document.getElementById('borrarTodo').disabled=ocupado;
+ document.querySelector('#respaldo input[type=file]').disabled=ocupado;
+}
+async function importar(ev){
+ if(!db||operacionDatos)return;
+ const f=ev.target.files[0];if(!f)return;
+ bloquearDatos(true);
+ try{
+  const d=JSON.parse(await f.text());
+  if(!confirm('¿Restaurar respaldo?'))return;
+  for(const x of d.movimientos||[]){const y={...x};delete y.id;await add('movimientos',y)}
+  for(const x of d.cierres||[])await put('cierres',x);
+  alert('Restaurado.');renderInicio();
+ }catch(e){alert('Archivo no válido.');}
+ finally{bloquearDatos(false);}
+}
+async function borrarTodo(){
+ const boton=document.getElementById('borrarTodo');
+ if(!db||boton.disabled||operacionDatos)return;
+ if(!confirm('¿Quieres empezar de nuevo? Se eliminarán todos los gastos, compras y cierres de este dispositivo. Descarga un respaldo antes si quieres conservarlos.'))return;
+ const palabra=prompt('Para confirmar, escribe BORRAR. Esta acción elimina todo el historial de este dispositivo.');
+ if(palabra===null||palabra.trim().toUpperCase()!=='BORRAR')return;
+ bloquearDatos(true);
+ try{
+  // Un solo cambio: ambos almacenes se vacían juntos o ninguno se modifica.
+  await new Promise((ok,no)=>{
+   const tx=db.transaction(['movimientos','cierres'],'readwrite');
+   tx.oncomplete=()=>ok();
+   tx.onabort=()=>no(tx.error||new Error('No se completó el borrado.'));
+   tx.objectStore('movimientos').clear();
+   tx.objectStore('cierres').clear();
+  });
+ }catch(e){
+  bloquearDatos(false);
+  alert('No se pudo borrar el historial. Tus registros se conservaron. Intenta de nuevo.');
+  return;
+ }
+ try{
+  document.querySelectorAll('main input').forEach(input=>{input.value='';});
+  await Promise.all([renderInicio(),renderMovs(),renderHist(),renderResumen('semana'),calcularCierre()]);
+  show('inicio');
+  alert('Todo quedó limpio. Ya puedes empezar a capturar de nuevo.');
+ }catch(e){
+  alert('El historial se borró. Cierra y vuelve a abrir la app para ver los campos limpios.');
+ }finally{bloquearDatos(false);}
+}
+openDB().then(async()=>{await renderInicio();await calcularCierre();bloquearDatos(operacionDatos);if('serviceWorker'in navigator)navigator.serviceWorker.register('./service-worker.js',{updateViaCache:'none'}).then(r=>r.update()).catch(e=>console.warn('No se pudo actualizar el modo sin conexión.',e))});

@@ -1,6 +1,6 @@
 // Solo recursos de Caja Fácil; IndexedDB no se modifica.
-const CACHE = 'caja-facil-v4.2';
-const ASSETS = ['./', './index.html', './styles.css?v=4.2', './app.js?v=4.2', './manifest.json?v=4.2', './icon-192.png', './icon-512.png'];
+const CACHE = 'caja-facil-v4.3';
+const ASSETS = ['./', './index.html', './styles.css?v=4.3', './app.js?v=4.3', './manifest.json?v=4.3', './icon-192.png', './icon-512.png'];
 const assetURLs = ASSETS.map(asset => new URL(asset, self.registration.scope).href);
 const assetPaths = new Set(assetURLs.map(url => new URL(url).pathname));
 
